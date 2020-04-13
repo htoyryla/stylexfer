@@ -36,8 +36,8 @@ progressbar2
 ---to be completed ----
 
 
-Usage
------
+Quick start
+-----------
 
 To do basic style transfer, give
 
@@ -45,8 +45,15 @@ To do basic style transfer, give
 
     python examples/iterative2.py --style hameenkatu222.png --content tallinna600x800.png   --output koe2.png  --scales 3 --iterations 500 --style-multiplier 1e+6
 
+You can then go on to experiment
 
+* the effect for style-multiplier
+* different style and content images 
 
+The size of the images DOES matter. The output image will be the size as the content image. Initially it is best to use style images of roughly the same size. Changing the style image resolution will enlarge or decrease the size of the style patterns produced. 
+
+Usage
+-----
 
 1. Texture Synthesis
 ~~~~~~~~~~~~~~~~~~~~
@@ -81,7 +88,7 @@ You will likely need to experiment with the default options to obtain good resul
 * ``--iterations=N``: Number of steps to run the optimizer at each scale.
 * ``--style-layers A,B,C,D``: Specify convolution layers of VGG19 manually, by default ``1_2,2_2,3_3,4_3,5_3`.
 * ``--style-weights a,b,c,d``: Override loss weights for style layers, by default ``1.0`` for each.
-* ``--content-layers E F``: Specify convolution layers of VGG19 manually, by default ``4_`` for ``relu4_1``.
+* ``--content-layers E F``: Specify convolution layers of VGG19 manually, by default ``4_1`` for ``relu4_1``.
 * ``--content-weights e f``: Override loss weight for content layers, by default ``1.0``.
 * ``--seed image.png``: Provide a starting image for the optimization.
 * ``--seed <integer>``: Give a random seed manually (for reproducibility)
