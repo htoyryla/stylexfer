@@ -2,6 +2,7 @@
 
 import os
 import argparse
+import cv2
 
 import torch
 import torch.nn.functional as F
@@ -37,6 +38,8 @@ class StyleTransfer(optim.ImageOptimizer):
         # Load the style image from disk to be processed during optimization.
         if args.style is not None:
             self.style_img = images.load_from_file(args.style, self.device)
+            print(args.style_layers)
+            args.style_layers = args.style_layers.split(',')
         else:
             args.style_weights, args.style_layers = [], []
             self.style_img = None
@@ -45,7 +48,9 @@ class StyleTransfer(optim.ImageOptimizer):
 
         # Preprocess the various loss weights and decide which layers need to be computed.
         self.args = args
-        self.args.style_weights = [w * self.args.style_multiplier for w in self.args.style_weights]
+        print(self.args.style_weights)
+        self.args.style_weights = [float(w) * self.args.style_multiplier for w in self.args.style_weights.split(',')]
+        print(self.args.style_weights)
         self.all_layers = set(self.args.content_layers) | set(self.args.style_layers) | set(self.args.histogram_layers)
 
     def evaluate(self, image):
@@ -111,6 +116,8 @@ class StyleTransfer(optim.ImageOptimizer):
                 # a) Load an image from disk, this needs to be the exact right size.
                 if self.args.seed is not None:
                     seed_img = images.load_from_file(self.args.seed, self.device)
+                    #seed_img = resize.DownscaleBuilder(factor).build(self.seed_img)
+                    print(seed_img.shape, content_img.shape)
                     assert seed_img.shape == content_img.shape
 
                 # b) Use completely random buffer from a normal distribution.
@@ -137,7 +144,7 @@ class StyleTransfer(optim.ImageOptimizer):
                 self.content_feat[i] = f.detach()
 
             # Now run the optimization using L-BFGS starting from the seed image.
-            output = self.optimize(seed_img, self.args.iterations, lr=0.2)
+            output = self.optimize(seed_img, self.args.iterations) #, lr=0.2)
 
             # For the next scale, we'll reuse a biliniear interpolated version of this output.
             self.seed_img = resize.UpscaleBuilder(factor, mode='bilinear').build(output).detach()
@@ -152,19 +159,20 @@ def main(args):
 
     parser = argparse.ArgumentParser(prog='imagen')
     add_arg = parser.add_argument
+    add_arg = parser.add_argument
     add_arg('--scales', type=int, default=3, help='Total number of scales.')
     add_arg('--iterations', type=int, default=250, help='Number of iterations each scale.')
     add_arg('--device', type=str, default=device, help='Where to perform the computation.')
     add_arg('--content', type=str, default=None, help='Image to use as reference.')
-    add_arg('--content-layers', type=int, nargs='*', default=[20])
-    add_arg('--content-weights', type=float, nargs='*', default=[1.0])
+    add_arg('--content-layers', type=str, nargs='*', default=['4_2'])
+    add_arg('--content-weights', type=str, nargs='*', default=[1.0])
     add_arg('--output', type=str, default=None, help='Filename for output image.')
     add_arg('--output-size', type=str, default=None)
     add_arg('--seed', type=str, default=None, help='Initial image to use.')
     add_arg('--seed-random', type=int, default=None, help='Seed for random numbers.')
     add_arg('--style', type=str, default=None, help='Image for inspiration.')
-    add_arg('--style-layers', type=int, nargs='*', default=[1, 6, 11, 20, 29])
-    add_arg('--style-weights', type=float, nargs='*', default=[1.0, 1.0, 1.0, 1.0, 1.0])
+    add_arg('--style-layers', type=str, default='1_2,2_2,3_3,4_3,5_3')
+    add_arg('--style-weights', type=str, default='1.0,1.0,1.0,1.0,1.0')
     add_arg('--style-multiplier', type=float, default=1e+6)
     add_arg('--histogram-layers', type=int, nargs='*', default=[])
     add_arg('--histogram-weights', type=float, nargs='*', default=[])
