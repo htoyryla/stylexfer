@@ -39,6 +39,7 @@ def extract_histograms(data, bins=7, min=None, max=None):
 
 def match_histograms(data, histogram, same_range=False):
     target, (tmin, tmax) = histogram
+
     output = torch.empty_like(data)
     bins = target.shape[2]
 

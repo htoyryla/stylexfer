@@ -27,20 +27,20 @@ def torch_pad_replicate(array, padding):
 
 
 def torch_interp(array, xs, ys):
-    result = torch.zeros_like(array)
+    result = torch.zeros_like(array).cuda()
     array = array.clamp(xs[0], xs[-1])
     for (xn, xm), (yn, ym) in zip(zip(xs[:-1], xs[1:]), zip(ys[:-1], ys[1:])):
+        print(xm)
         if xn == xm:
             continue
 
         sliced = yn + ((array - xn) / (xm - xn)) * (ym - yn)
         result += torch.where(
             xn <= array,
-            torch.where(array < xm, sliced, torch.tensor(0.0)),
-            torch.tensor(0.0),
+            torch.where(array < xm, sliced, torch.tensor(0.0).cuda()),
+            torch.tensor(0.0).cuda(),
         )
-
-    result += torch.where(xm == array, array * 0.0 + ym, torch.tensor(0.0))
+    result += torch.where(xm == array, array * 0.0 + ym, torch.tensor(0.0).cuda())
     return result
 
 

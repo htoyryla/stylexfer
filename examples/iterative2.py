@@ -46,12 +46,22 @@ class StyleTransfer(optim.ImageOptimizer):
 
         self.seed_img = None
 
+        if args.histogram_layers is not '':
+            args.histogram_layers = args.histogram_layers.split(',')
+            args.histogram_weights = [float(w) for w in args.histogram_weights.split(',')]
+
         # Preprocess the various loss weights and decide which layers need to be computed.
         self.args = args
+        #if args.style is not None:
         print(self.args.style_weights)
         self.args.style_weights = [float(w) * self.args.style_multiplier for w in self.args.style_weights.split(',')]
         print(self.args.style_weights)
         self.all_layers = set(self.args.content_layers) | set(self.args.style_layers) | set(self.args.histogram_layers)
+
+        print(self.args.content_layers)
+        print(self.args.style_layers)
+        print(self.args.histogram_layers)
+
 
     def evaluate(self, image):
         """Compute the style and content loss for the image specified, used at each step of the optimization.
@@ -83,6 +93,7 @@ class StyleTransfer(optim.ImageOptimizer):
             # Histogram loss is computed like a content loss, but only after the values have been
             # adjusted to match the target histogram.
             if i in self.args.histogram_layers:
+                #print(f)
                 tl = histogram.match_histograms(f, self.style_hist[i], same_range=True)
                 hist_score += F.mse_loss(tl, f) * next(hw)
 
@@ -174,8 +185,8 @@ def main(args):
     add_arg('--style-layers', type=str, default='1_2,2_2,3_3,4_3,5_3')
     add_arg('--style-weights', type=str, default='1.0,1.0,1.0,1.0,1.0')
     add_arg('--style-multiplier', type=float, default=1e+6)
-    add_arg('--histogram-layers', type=int, nargs='*', default=[])
-    add_arg('--histogram-weights', type=float, nargs='*', default=[])
+    add_arg('--histogram-layers', type=str, default='')
+    add_arg('--histogram-weights', type=str, default='')
     add_arg('--save-every', type=int, default=0)
     add_arg('--print-every', type=int, default=10)
     args = parser.parse_args()
