@@ -5,9 +5,11 @@ import torchvision.transforms as transforms
 import PIL.Image
 
 
-def load_from_file(filename, device, mode="RGB"):
+def load_from_file(filename, device, mode="RGB", size = None):
     loader = transforms.Compose([transforms.ToTensor()])
     image = PIL.Image.open(filename).convert(mode)
+    if size is not None:
+        image = image.resize(size)
     image = loader(image).unsqueeze(0)
     return image.to(device, torch.float) * 4.0 - 2.0
 

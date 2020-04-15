@@ -29,7 +29,12 @@ class StyleTransfer(optim.ImageOptimizer):
 
         # Load the content image from disk or create an empty tensor.
         if args.content is not None:
-            self.content_img = images.load_from_file(args.content, self.device)
+            content_size = None
+            if args.content_size is not None:
+                h, w = reversed(list(map(int, args.content_size.split('x'))))
+                content_size = (h,w)
+                print("Content image resized to h={}, w={}".format(h,w))
+            self.content_img = images.load_from_file(args.content, self.device, size=content_size)
         else:
             args.content_weights, args.content_layers = [], []
             h, w = reversed(list(map(int, args.output_size.split('x'))))
@@ -37,8 +42,12 @@ class StyleTransfer(optim.ImageOptimizer):
 
         # Load the style image from disk to be processed during optimization.
         if args.style is not None:
-            self.style_img = images.load_from_file(args.style, self.device)
-            print(args.style_layers)
+            style_size = None
+            if args.style_size is not None:
+                h, w = reversed(list(map(int, args.style_size.split('x'))))
+                style_size = (h,w)
+                print("Style image resized to h={}, w={}".format(h,w))
+            self.style_img = images.load_from_file(args.style, self.device, size = style_size)
             args.style_layers = args.style_layers.split(',')
         else:
             args.style_weights, args.style_layers = [], []
@@ -53,15 +62,8 @@ class StyleTransfer(optim.ImageOptimizer):
         # Preprocess the various loss weights and decide which layers need to be computed.
         self.args = args
         #if args.style is not None:
-        print(self.args.style_weights)
         self.args.style_weights = [float(w) * self.args.style_multiplier for w in self.args.style_weights.split(',')]
-        print(self.args.style_weights)
         self.all_layers = set(self.args.content_layers) | set(self.args.style_layers) | set(self.args.histogram_layers)
-
-        print(self.args.content_layers)
-        print(self.args.style_layers)
-        print(self.args.histogram_layers)
-
 
     def evaluate(self, image):
         """Compute the style and content loss for the image specified, used at each step of the optimization.
@@ -177,6 +179,7 @@ def main(args):
     add_arg('--content', type=str, default=None, help='Image to use as reference.')
     add_arg('--content-layers', type=str, nargs='*', default=['4_1'])
     add_arg('--content-weights', type=str, nargs='*', default=[1.0])
+    add_arg('--content-size', type=str, default=None)
     add_arg('--output', type=str, default=None, help='Filename for output image.')
     add_arg('--output-size', type=str, default=None)
     add_arg('--seed', type=str, default=None, help='Initial image to use.')
@@ -185,6 +188,7 @@ def main(args):
     add_arg('--style-layers', type=str, default='1_2,2_2,3_3,4_3,5_3')
     add_arg('--style-weights', type=str, default='1.0,1.0,1.0,1.0,1.0')
     add_arg('--style-multiplier', type=float, default=1e+6)
+    add_arg('--style-size', type=str, default=None)
     add_arg('--histogram-layers', type=str, default='')
     add_arg('--histogram-weights', type=str, default='')
     add_arg('--save-every', type=int, default=0)
