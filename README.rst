@@ -52,6 +52,8 @@ You can then go on to experiment
 
 The size of the images DOES matter. The output image will be the size as the content image. Initially it is best to use style images of roughly the same size. Changing the style image resolution will enlarge or decrease the size of the style patterns produced. 
 
+You can now adjust style size with --style-size parameter.
+
 Usage
 -----
 
@@ -85,6 +87,10 @@ You will likely need to experiment with the default options to obtain good resul
 * ``--content-weights e f``: Override loss weight for content layers, by default ``1.0``.
 * ``--seed image.png``: Provide a starting image for the optimization.
 * ``--seed <integer>``: Give a random seed manually (for reproducibility)
+* ``--style-size xhw``: Resize style image, e.g. 400x600 (height x width).
+* ``--content-size xhw``: Resize content image, e.g. 400x600 (height x width).
+
+
 
 Changing content layers has not yet been tested.
 
