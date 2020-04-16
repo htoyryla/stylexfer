@@ -33,6 +33,8 @@ torchvision
 
 progressbar2
 
+moviepy (for processing video frames)
+
 ---to be completed ----
 
 
@@ -95,6 +97,31 @@ You will likely need to experiment with the default options to obtain good resul
 Changing content layers has not yet been tested.
 
 
-COMING:
+Processing video
+----------------
 
-Scripts for processing video frames or folders of images.
+Install moviepy
+
+Extract frames from video with v2frames.py:
+
+.. code:: bash
+    python v2frames.py --video /path/to/your/videofile --output_dir frames/
+    
+To extract only a part, specify start and end positions /in seconds):
+
+.. code:: bash
+    python v2frames.py --video /work3/tools/mmovie/movie.mp4 --start 10 --end 15 --output_dir frames/ 
+
+Run stylexfer in cascade mode
+
+.. code:: bash
+    python stylexfer.py --style style1.png  --content frames/l-%d.jpg  --content-size 480x640 --style-size 480x640 --output output/processed-%d.png --scales 3 --iterations 300 --style-multiplier 1e+5 --seed-random 765 --cascade --start 12633 --howmany 16
+
+This will convert 16 successively numbered frames starting from frames/l-12633.jpg and place the converted frames in output/ . Make sure that the required folders exist. Note the format of content and output filenames: %d will be replaced by the actual frame number.
+
+To ensure maximum consistence between processed frames, give a random seed (any integer) manually, as in --seed-random 765 in the example above.
+
+A video can then by created from the converted frames with a suitable tool. Instructions for ffmpeg will be included here as soon as possible.
+ 
+
+

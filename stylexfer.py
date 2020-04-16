@@ -2,6 +2,7 @@
 
 import os
 import argparse
+import copy
 import cv2
 
 import torch
@@ -193,10 +194,24 @@ def main(args):
     add_arg('--histogram-weights', type=str, default='')
     add_arg('--save-every', type=int, default=0)
     add_arg('--print-every', type=int, default=10)
+    add_arg('--start', type=int, default=1)
+    add_arg('--howmany', type=int, default=1)
+    add_arg('--cascade', default=False, action='store_true')
     args = parser.parse_args()
-
-    optimizer = StyleTransfer(args)
-    optimizer.run()
+    if args.cascade:
+        cfn = args.content
+        ofn = args.output
+        for n in range(args.start, args.start + args.howmany):
+             args.content = cfn.replace("%d", str(n))
+             args.output = ofn.replace("%d", str(n))
+             print("*************** "+args.output+" *******************")
+             optimizer = StyleTransfer(copy.deepcopy(args))
+             optimizer.run()
+             args.seed = args.output
+             args.scales = 1
+    else:
+        optimizer = StyleTransfer(args)
+        optimizer.run()
 
 
 if __name__ == '__main__':
