@@ -25,6 +25,7 @@ class StyleTransfer(optim.ImageOptimizer):
             torch.manual_seed(args.seed_random)
 
         # Load the convolution network from pre-trained parameters.
+        self.cuda = args.device == 'cuda'
         self.device = torch.device(args.device)
         self.model = classifiers.VGG19Encoder().to(self.device)
 
@@ -122,8 +123,8 @@ class StyleTransfer(optim.ImageOptimizer):
         for self.scale in range(0, self.args.scales):
             # Pre-process the input images so they have the expected size.
             factor = 2 ** (self.args.scales - self.scale - 1)
-            content_img = resize.DownscaleBuilder(factor).build(self.content_img)
-            style_img = resize.DownscaleBuilder(factor).build(self.style_img)
+            content_img = resize.DownscaleBuilder(factor, cuda=self.cuda).build(self.content_img)
+            style_img = resize.DownscaleBuilder(factor, cuda=self.cuda).build(self.style_img)
 
             # Determine the stating point for the optimizer, was there an output of previous scale?
             if self.seed_img is None:
@@ -139,7 +140,7 @@ class StyleTransfer(optim.ImageOptimizer):
                     seed_img = torch.empty_like(content_img).normal_(std=0.5).clamp_(-2.0, +2.0)
             else:
                 # c) There was a previous scale, so resize and add noise from normal distribution. 
-                seed_img = (resize.DownscaleBuilder(factor).build(self.seed_img)
+                seed_img = (resize.DownscaleBuilder(factor, cuda=self.cuda).build(self.seed_img)
                            + torch.empty_like(content_img).normal_(std=0.1)).clamp_(-2.0, +2.0)
 
             # Pre-compute the cross-correlation statistics for the style image layers (aka. gram matrices).

@@ -5,7 +5,7 @@ import torch.nn
 
 
 class DownscaleBuilder:
-    def __init__(self, factor, channels=3):
+    def __init__(self, factor, cuda=True, channels=3):
         self.downscaler = torch.nn.Sequential(
             torch.nn.Conv2d(
                 channels,
@@ -18,7 +18,8 @@ class DownscaleBuilder:
 
         self.downscaler[0].bias[:] = 0.0
         self.downscaler[0].weight[:, 0, :, :] = 1.0 / (factor ** 2)
-        self.downscaler.cuda()
+        if cuda:
+            self.downscaler.cuda()
 
     def build(self, image):
         return self.downscaler(image)
