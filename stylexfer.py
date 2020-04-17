@@ -29,6 +29,8 @@ class StyleTransfer(optim.ImageOptimizer):
         self.device = torch.device(args.device)
         self.model = classifiers.VGG19Encoder().to(self.device)
 
+        print("Running on "+args.device)
+
         # Load the content image from disk or create an empty tensor.
         if args.content is not None:
             content_size = None
@@ -58,6 +60,7 @@ class StyleTransfer(optim.ImageOptimizer):
         self.seed_img = None
 
         if args.histogram_layers is not '':
+            assert args.device == "cuda", "Histogram currently only supported on GPU"
             args.histogram_layers = args.histogram_layers.split(',')
             args.histogram_weights = [float(w) for w in args.histogram_weights.split(',')]
 
