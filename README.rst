@@ -91,6 +91,8 @@ You will likely need to experiment with the default options to obtain good resul
 * ``--seed <integer>``: Give a random seed manually (for reproducibility)
 * ``--style-size xhw``: Resize style image, e.g. 400x600 (height x width).
 * ``--content-size xhw``: Resize content image, e.g. 400x600 (height x width).
+* ``--device <device>``: 'cuda' or 'cpu', default is cuda.
+
 
 
 
