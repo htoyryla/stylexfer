@@ -86,7 +86,7 @@ class StyleTransfer(optim.ImageOptimizer):
 
         # Each layer can have custom weights for style and content loss, stored as Python iterators.
         cw = iter(self.args.content_weights)
-        sw = iter(self.args.style_weights * 2)
+        sw = iter(self.args.style_weights * len(self.style_imgs))
         hw = iter(self.args.histogram_weights)
 
         # Ask the model to prepare each layer one by one, then decide which losses to calculate.
