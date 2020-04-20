@@ -51,7 +51,16 @@ class StyleTransfer(optim.ImageOptimizer):
                 h, w = reversed(list(map(int, args.style_size.split('x'))))
                 style_size = (h,w)
                 print("Style image resized to h={}, w={}".format(h,w))
-            self.style_img = images.load_from_file(args.style, self.device, size = style_size)
+            style_files = args.style.split(',')
+            print(style_files)
+            self.style_imgs = []
+            for f in style_files:
+                self.style_imgs.append(images.load_from_file(f, self.device, size = style_size))
+            self.style_multipliers = [float(w) for w in args.style_multiplier.split(',')]
+            if len(self.style_multipliers) == 1:
+                self.style_multipliers = self.style_multipliers * len(self.style_imgs)
+
+
             args.style_layers = args.style_layers.split(',')
         else:
             args.style_weights, args.style_layers = [], []
@@ -67,7 +76,7 @@ class StyleTransfer(optim.ImageOptimizer):
         # Preprocess the various loss weights and decide which layers need to be computed.
         self.args = args
         #if args.style is not None:
-        self.args.style_weights = [float(w) * self.args.style_multiplier for w in self.args.style_weights.split(',')]
+        self.args.style_weights = [float(w) for w in self.args.style_weights.split(',')]
         self.all_layers = set(self.args.content_layers) | set(self.args.style_layers) | set(self.args.histogram_layers)
 
     def evaluate(self, image):
@@ -82,7 +91,7 @@ class StyleTransfer(optim.ImageOptimizer):
 
         # Each layer can have custom weights for style and content loss, stored as Python iterators.
         cw = iter(self.args.content_weights)
-        sw = iter(self.args.style_weights)
+        sw = iter(self.args.style_weights * len(self.style_imgs))
         hw = iter(self.args.histogram_weights)
 
         # Ask the model to prepare each layer one by one, then decide which losses to calculate.
@@ -94,9 +103,9 @@ class StyleTransfer(optim.ImageOptimizer):
 
             # The style loss is mean squared error on cross-correlation statistics (aka. gram matrix).
             if i in self.args.style_layers:
+              for n in range(0, len(self.style_imgs)):
                 gram = histogram.square_matrix(f - 1.0)
-                style_score += F.mse_loss(self.style_gram[i], gram) * next(sw)
-
+                style_score += F.mse_loss(self.style_gram[n, i], gram) * next(sw) * self.style_multipliers[n]
             # Histogram loss is computed like a content loss, but only after the values have been
             # adjusted to match the target histogram.
             if i in self.args.histogram_layers:
@@ -127,7 +136,9 @@ class StyleTransfer(optim.ImageOptimizer):
             # Pre-process the input images so they have the expected size.
             factor = 2 ** (self.args.scales - self.scale - 1)
             content_img = resize.DownscaleBuilder(factor, cuda=self.cuda).build(self.content_img)
-            style_img = resize.DownscaleBuilder(factor, cuda=self.cuda).build(self.style_img)
+            style_imgs = []
+            for img in self.style_imgs:
+               style_imgs.append(resize.DownscaleBuilder(factor, cuda=self.cuda).build(img))
 
             # Determine the stating point for the optimizer, was there an output of previous scale?
             if self.seed_img is None:
@@ -148,14 +159,18 @@ class StyleTransfer(optim.ImageOptimizer):
 
             # Pre-compute the cross-correlation statistics for the style image layers (aka. gram matrices).
             self.style_gram = {}
-            for i, f in self.model.extract(style_img, layers=self.args.style_layers):
-                self.style_gram[i] = histogram.square_matrix(f - 1.0).detach()
-
+            n = 0
+            for img in style_imgs: 
+                for i, f in self.model.extract(img, layers=self.args.style_layers):
+                    self.style_gram[n, i] = histogram.square_matrix(f - 1.0).detach()
+                n = n + 1
             # Pre-compute feature histograms for the style image layers specified.
             self.style_hist = {}
-            for k, v in self.model.extract(style_img, layers=self.args.histogram_layers):
-                self.style_hist[k] = histogram.extract_histograms(v, bins=5, min=torch.tensor(-1.0), max=torch.tensor(+4.0))
-
+            n = 0
+            for img in style_imgs: 
+              for k, v in self.model.extract(img, layers=self.args.histogram_layers):
+                self.style_hist[n, k] = histogram.extract_histograms(v, bins=5, min=torch.tensor(-1.0), max=torch.tensor(+4.0))
+              n = n + 1
             # Prepare and store the content image activations for image layers too.
             self.content_feat = {}
             for i, f in self.model.extract(content_img, layers=self.args.content_layers):
@@ -192,7 +207,7 @@ def main(args):
     add_arg('--style', type=str, default=None, help='Image for inspiration.')
     add_arg('--style-layers', type=str, default='1_2,2_2,3_3,4_3,5_3')
     add_arg('--style-weights', type=str, default='1.0,1.0,1.0,1.0,1.0')
-    add_arg('--style-multiplier', type=float, default=1e+6)
+    add_arg('--style-multiplier', type=str, default='1e+6')
     add_arg('--style-size', type=str, default=None)
     add_arg('--histogram-layers', type=str, default='')
     add_arg('--histogram-weights', type=str, default='')
