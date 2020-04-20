@@ -109,9 +109,9 @@ class StyleTransfer(optim.ImageOptimizer):
             # Histogram loss is computed like a content loss, but only after the values have been
             # adjusted to match the target histogram.
             if i in self.args.histogram_layers:
-                #print(f)
-                tl = histogram.match_histograms(f, self.style_hist[i], same_range=True)
-                hist_score += F.mse_loss(tl, f) * next(hw)
+                for n in range(0, len(self.style_imgs)):
+                    tl = histogram.match_histograms(f, self.style_hist[n, i], same_range=True)
+                    hist_score += F.mse_loss(tl, f) * next(hw)
 
         # Store the image to disk at the specified intervals.
         if self.should_do(self.args.save_every):
