@@ -198,7 +198,7 @@ def main(args):
     add_arg('--device', type=str, default=device, help='Where to perform the computation.')
     add_arg('--content', type=str, default=None, help='Image to use as reference.')
     add_arg('--content-layers', type=str, nargs='*', default=['4_1'])
-    add_arg('--content-weights', type=str, nargs='*', default=[1.0])
+    add_arg('--content-weights', type=float, nargs='*', default=[1.0])
     add_arg('--content-size', type=str, default=None)
     add_arg('--output', type=str, default=None, help='Filename for output image.')
     add_arg('--output-size', type=str, default=None)
