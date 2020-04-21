@@ -72,6 +72,7 @@ class VGG19Decoder(torch.nn.Module):
             )
         )
 
+
     def rebuild(self, data, layers: set, start: str):
         """Convert features extracted from the encoder and turn them into an image.
         """
@@ -85,3 +86,35 @@ class VGG19Decoder(torch.nn.Module):
             data = self.features[i].forward(data)
             if i in indices:
                 yield names[i], data
+
+
+class VGG16Encoder(VGGEncoder):
+    def __init__(self, pooling="average"):
+        """Loads the pre-trained VGG19 convolution layers from the PyTorch vision module.
+        """
+        super(VGG16Encoder, self).__init__()
+
+        self.features = torch.nn.Sequential(
+            collections.OrderedDict(
+                [
+                    ("0_0", NormLayer((1, 3, 1, 1), direction="encode")),
+                    ("1_1", ConvLayer(3, 64)),
+                    ("1_2", ConvLayer(64, 64)),
+                    ("2_1", ConvLayer(64, 128, scale="average")),
+                    ("2_2", ConvLayer(128, 128)),
+                    ("3_1", ConvLayer(128, 256, scale="average")),
+                    ("3_2", ConvLayer(256, 256)),
+                    ("3_3", ConvLayer(256, 256)),
+                    ("4_1", ConvLayer(256, 512, scale="average")),
+                    ("4_2", ConvLayer(512, 512)),
+                    ("4_3", ConvLayer(512, 512)),
+                    ("5_1", ConvLayer(512, 512, scale="average")),
+                    ("5_2", ConvLayer(512, 512)),
+                    ("5_3", ConvLayer(512, 512))
+                ]
+            )
+        )
+
+        filename = "data/vgg16places_enc.model"
+        self.load_state_dict(torch.load(filename))
+
