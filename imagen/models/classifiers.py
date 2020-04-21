@@ -5,7 +5,7 @@ import collections
 import torch.nn
 
 from . import download_to_file
-from .vgg import ConvLayer, NormLayer, VGGEncoder
+from .vgg import ConvLayer, NormLayer, VGGEncoder, LinearLayer
 
 
 class VGG19Encoder(VGGEncoder):
@@ -33,12 +33,13 @@ class VGG19Encoder(VGGEncoder):
                     ("5_1", ConvLayer(512, 512, scale="average")),
                     ("5_2", ConvLayer(512, 512)),
                     ("5_3", ConvLayer(512, 512)),
-                    ("5_4", ConvLayer(512, 512)),
+                    ("5_4", ConvLayer(512, 512))
                 ]
             )
         )
 
         filename = download_to_file("vgg19_enc", "6cbccfc92ca1be3c4ac96d7da2df3dcf")
+        print("Using VGG19 model "+filename)
         self.load_state_dict(torch.load(filename))
 
 
@@ -89,7 +90,7 @@ class VGG19Decoder(torch.nn.Module):
 
 
 class VGG16Encoder(VGGEncoder):
-    def __init__(self, pooling="average"):
+    def __init__(self, pooling="average", fn=""):
         """Loads the pre-trained VGG19 convolution layers from the PyTorch vision module.
         """
         super(VGG16Encoder, self).__init__()
@@ -115,6 +116,40 @@ class VGG16Encoder(VGGEncoder):
             )
         )
 
-        filename = "data/vgg16places_enc.model"
+        #filename = "data/vgg16stylized_enc.model"
+        print("Using VGG16 model "+fn)
+        self.load_state_dict(torch.load(fn))
+
+class VGG16FCEncoder(VGGEncoder):
+    def __init__(self, pooling="average"):
+        """Loads the pre-trained VGG19 convolution layers from the PyTorch vision module.
+        """
+        super(VGG16FCEncoder, self).__init__()
+
+        self.features = torch.nn.Sequential(
+            collections.OrderedDict(
+                [
+                    ("0_0", NormLayer((1, 3, 1, 1), direction="encode")),
+                    ("1_1", ConvLayer(3, 64)),
+                    ("1_2", ConvLayer(64, 64)),
+                    ("2_1", ConvLayer(64, 128, scale="average")),
+                    ("2_2", ConvLayer(128, 128)),
+                    ("3_1", ConvLayer(128, 256, scale="average")),
+                    ("3_2", ConvLayer(256, 256)),
+                    ("3_3", ConvLayer(256, 256)),
+                    ("4_1", ConvLayer(256, 512, scale="average")),
+                    ("4_2", ConvLayer(512, 512)),
+                    ("4_3", ConvLayer(512, 512)),
+                    ("5_1", ConvLayer(512, 512, scale="average")),
+                    ("5_2", ConvLayer(512, 512)),
+                    ("5_3", ConvLayer(512, 512)),
+                    ('fc1', LinearLayer(512*7*7, 4096)),
+                    ('fc2', LinearLayer(4096, 4096)),
+                    ('fc3', LinearLayer(4096, 365))
+                ]
+            )
+        )
+
+        filename = "data/vgg16places_fc_enc.model"
         self.load_state_dict(torch.load(filename))
 

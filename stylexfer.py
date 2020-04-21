@@ -27,29 +27,36 @@ class StyleTransfer(optim.ImageOptimizer):
         # Load the convolution network from pre-trained parameters.
         self.cuda = args.device == 'cuda'
         self.device = torch.device(args.device)
-        self.model = classifiers.VGG19Encoder().to(self.device)
-
+        if args.model == "imagenet":
+            self.model = classifiers.VGG19Encoder().to(self.device)
+        elif args.model == "places":
+            self.model = classifiers.VGG16Encoder(fn="data/vgg16places_enc.model").to(self.device)
+        elif args.model == "stylized":
+            self.model = classifiers.VGG16Encoder(fn="data/vgg16stylized_enc.model").to(self.device)
+        else:
+            print("Unknown model: "+args.model)
+            exit()
         print("Running on "+args.device)
 
         # Load the content image from disk or create an empty tensor.
         if args.content is not None:
             content_size = None
             if args.content_size is not None:
-                h, w = reversed(list(map(int, args.content_size.split('x'))))
-                content_size = (h,w)
+                w, h = reversed(list(map(int, args.content_size.split('x'))))
+                content_size = (w,h)
                 print("Content image resized to h={}, w={}".format(h,w))
             self.content_img = images.load_from_file(args.content, self.device, size=content_size)
         else:
             args.content_weights, args.content_layers = [], []
-            h, w = reversed(list(map(int, args.output_size.split('x'))))
-            self.content_img = torch.zeros((1, 3, h, w), device=self.device)
+            w, h = reversed(list(map(int, args.output_size.split('x'))))
+            self.content_img = torch.zeros((1, 3, w, h), device=self.device)
 
         # Load the style image from disk to be processed during optimization.
         if args.style is not None:
             style_size = None
             if args.style_size is not None:
-                h, w = reversed(list(map(int, args.style_size.split('x'))))
-                style_size = (h,w)
+                w, h = reversed(list(map(int, args.style_size.split('x'))))
+                style_size = (w,h)
                 print("Style image resized to h={}, w={}".format(h,w))
             style_files = args.style.split(',')
             print(style_files)
@@ -216,7 +223,11 @@ def main(args):
     add_arg('--start', type=int, default=1)
     add_arg('--howmany', type=int, default=1)
     add_arg('--cascade', default=False, action='store_true')
+    add_arg('--model', type=str, default='imagenet', help='imagenet | places | stylized')
+    add_arg('--folder', default=False, action='store_true')
+
     args = parser.parse_args()
+
     if args.cascade:
         cfn = args.content
         ofn = args.output
@@ -228,6 +239,21 @@ def main(args):
              optimizer.run()
              args.seed = args.output
              args.scales = 1
+    elif args.folder:
+        cfn = args.content
+        ofn = args.output
+
+        imgList = os.listdir(cfn)
+        nImgs = len(imgList)
+        print('#images = %d' % nImgs)
+
+        for i in range(nImgs):
+          args.content = cfn + "/" + imgList[i]
+          args.output = ofn  + "/" + imgList[i]
+          #args_orig = copy.deepcopy(args)
+          print("*************** "+args.output+" *******************")
+          optimizer = StyleTransfer(copy.deepcopy(args))
+          optimizer.run()
     else:
         optimizer = StyleTransfer(args)
         optimizer.run()

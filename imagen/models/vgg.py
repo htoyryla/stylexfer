@@ -21,6 +21,15 @@ class ConvLayer(torch.nn.Sequential):
 
         super(ConvLayer, self).__init__(*layers)
 
+class LinearLayer(torch.nn.Sequential):
+    def __init__(self, in_channels, out_channels): #, activation='ReLU', dropout=None):
+        layers = [
+            torch.nn.Linear(in_channels, out_channels),
+            torch.nn.ReLU(),
+            torch.nn.Dropout(p=0.5)
+        ]
+
+        super(LinearLayer, self).__init__(*layers)
 
 class NormLayer(torch.nn.Module):
     def __init__(self, size, direction="encode"):
