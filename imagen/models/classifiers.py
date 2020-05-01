@@ -8,6 +8,23 @@ from . import download_to_file
 from .vgg import ConvLayer, NormLayer, VGGEncoder, LinearLayer
 
 
+class View(torch.nn.Module):
+    def __init__(self, shape):
+        super().__init__()
+        self.shape = shape
+
+    def __repr__(self):
+        return f'View{self.shape}'
+
+    def forward(self, input):
+        '''
+        Reshapes the input according to the shape saved in the view data structure.
+        '''
+        #batch_size = input.size(0)
+        #shape = (batch_size, *self.shape)
+        out = input.view(-1)
+        return out
+
 class VGG19Encoder(VGGEncoder):
     def __init__(self, pooling="average"):
         """Loads the pre-trained VGG19 convolution layers from the PyTorch vision module.
@@ -121,7 +138,7 @@ class VGG16Encoder(VGGEncoder):
         self.load_state_dict(torch.load(fn))
 
 class VGG16FCEncoder(VGGEncoder):
-    def __init__(self, pooling="average"):
+    def __init__(self, pooling="average", fn=""):
         """Loads the pre-trained VGG19 convolution layers from the PyTorch vision module.
         """
         super(VGG16FCEncoder, self).__init__()
@@ -132,24 +149,26 @@ class VGG16FCEncoder(VGGEncoder):
                     ("0_0", NormLayer((1, 3, 1, 1), direction="encode")),
                     ("1_1", ConvLayer(3, 64)),
                     ("1_2", ConvLayer(64, 64)),
-                    ("2_1", ConvLayer(64, 128, scale="average")),
+                    ("2_1", ConvLayer(64, 128, scale=pooling)),
                     ("2_2", ConvLayer(128, 128)),
-                    ("3_1", ConvLayer(128, 256, scale="average")),
+                    ("3_1", ConvLayer(128, 256, scale=pooling)),
                     ("3_2", ConvLayer(256, 256)),
                     ("3_3", ConvLayer(256, 256)),
-                    ("4_1", ConvLayer(256, 512, scale="average")),
+                    ("4_1", ConvLayer(256, 512, scale=pooling)),
                     ("4_2", ConvLayer(512, 512)),
                     ("4_3", ConvLayer(512, 512)),
-                    ("5_1", ConvLayer(512, 512, scale="average")),
+                    ("5_1", ConvLayer(512, 512, scale=pooling)),
                     ("5_2", ConvLayer(512, 512)),
                     ("5_3", ConvLayer(512, 512)),
+                    ("adapt", torch.nn.AdaptiveAvgPool2d(output_size=(7,7))),
+                    ("view", View(-1)),
                     ('fc1', LinearLayer(512*7*7, 4096)),
                     ('fc2', LinearLayer(4096, 4096)),
-                    ('fc3', LinearLayer(4096, 365))
+                    ('fc3', LinearLayer(4096, 1000))
                 ]
             )
         )
 
-        filename = "data/vgg16places_fc_enc.model"
-        self.load_state_dict(torch.load(filename))
+        #filename = "data/vgg16places_fc_enc.model"
+        self.load_state_dict(torch.load(fn))
 

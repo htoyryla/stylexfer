@@ -57,6 +57,7 @@ class VGGEncoder(torch.nn.Module):
         indices = [names.index(l) for l in layers]
 
         for i in range(names.index(start), max(indices) + 1):
+            #print(names[i])
             image = self.features[i].forward(image)
             if i in indices:
                 yield names[i], image

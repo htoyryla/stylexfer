@@ -45,11 +45,14 @@ class StyleTransfer(optim.ImageOptimizer):
                 w, h = reversed(list(map(int, args.content_size.split('x'))))
                 content_size = (w,h)
                 print("Content image resized to h={}, w={}".format(h,w))
-            self.content_img = images.load_from_file(args.content, self.device, size=content_size)
+            self.content_imgs = []
+            content_files = args.content.split(',')
+            for f in content_files:
+                self.content_imgs.append(images.load_from_file(f, self.device, size=content_size))
         else:
             args.content_weights, args.content_layers = [], []
             w, h = reversed(list(map(int, args.output_size.split('x'))))
-            self.content_img = torch.zeros((1, 3, w, h), device=self.device)
+            self.content_imgs = [torch.zeros((1, 3, h, w), device=self.device)]
 
         # Load the style image from disk to be processed during optimization.
         if args.style is not None:
@@ -58,6 +61,8 @@ class StyleTransfer(optim.ImageOptimizer):
                 w, h = reversed(list(map(int, args.style_size.split('x'))))
                 style_size = (w,h)
                 print("Style image resized to h={}, w={}".format(h,w))
+            if args.style.startswith("content+"):
+                args.style = args.content + "," + args.style.replace("content+", "")
             style_files = args.style.split(',')
             print(style_files)
             self.style_imgs = []
@@ -86,6 +91,10 @@ class StyleTransfer(optim.ImageOptimizer):
         self.args.style_weights = [float(w) for w in self.args.style_weights.split(',')]
         self.all_layers = set(self.args.content_layers) | set(self.args.style_layers) | set(self.args.histogram_layers)
 
+        self.iterations = self.args.iterations
+        if len(self.iterations) == 1 and args.scales > 1:
+            self.iterations = self.iterations * args.scales 
+        print(self.iterations)
     def evaluate(self, image):
         """Compute the style and content loss for the image specified, used at each step of the optimization.
         """
@@ -97,16 +106,18 @@ class StyleTransfer(optim.ImageOptimizer):
         content_score = torch.tensor(0.0).to(self.device)
 
         # Each layer can have custom weights for style and content loss, stored as Python iterators.
-        cw = iter(self.args.content_weights)
+        cw = iter(self.args.content_weights * len(self.content_imgs))
         sw = iter(self.args.style_weights * len(self.style_imgs))
-        hw = iter(self.args.histogram_weights)
+        hw = iter(self.args.histogram_weights * len(self.style_imgs))
 
         # Ask the model to prepare each layer one by one, then decide which losses to calculate.
         for i, f in self.model.extract(image, layers=self.all_layers):
 
             # The content loss is a mean squared error directly on the activation features.
             if i in self.args.content_layers:
-                content_score += F.mse_loss(self.content_feat[i], f) * next(cw)
+                #content_score += F.mse_loss(self.content_feat[i], f) * next(cw)
+                for n in range(0, len(self.content_imgs)):
+                    content_score += F.mse_loss(self.content_feat[n, i], f) * next(cw)
 
             # The style loss is mean squared error on cross-correlation statistics (aka. gram matrix).
             if i in self.args.style_layers:
@@ -142,7 +153,9 @@ class StyleTransfer(optim.ImageOptimizer):
         for self.scale in range(0, self.args.scales):
             # Pre-process the input images so they have the expected size.
             factor = 2 ** (self.args.scales - self.scale - 1)
-            content_img = resize.DownscaleBuilder(factor, cuda=self.cuda).build(self.content_img)
+            content_imgs = []
+            for img in self.content_imgs:
+                content_imgs.append(resize.DownscaleBuilder(factor, cuda=self.cuda).build(img))
             style_imgs = []
             for img in self.style_imgs:
                style_imgs.append(resize.DownscaleBuilder(factor, cuda=self.cuda).build(img))
@@ -158,11 +171,11 @@ class StyleTransfer(optim.ImageOptimizer):
 
                 # b) Use completely random buffer from a normal distribution.
                 else:
-                    seed_img = torch.empty_like(content_img).normal_(std=0.5).clamp_(-2.0, +2.0)
+                    seed_img = torch.empty_like(content_imgs[0]).normal_(std=0.5).clamp_(-2.0, +2.0)
             else:
                 # c) There was a previous scale, so resize and add noise from normal distribution. 
                 seed_img = (resize.DownscaleBuilder(factor, cuda=self.cuda).build(self.seed_img)
-                           + torch.empty_like(content_img).normal_(std=0.1)).clamp_(-2.0, +2.0)
+                           + torch.empty_like(content_imgs[0]).normal_(std=0.1)).clamp_(-2.0, +2.0)
 
             # Pre-compute the cross-correlation statistics for the style image layers (aka. gram matrices).
             self.style_gram = {}
@@ -180,11 +193,13 @@ class StyleTransfer(optim.ImageOptimizer):
               n = n + 1
             # Prepare and store the content image activations for image layers too.
             self.content_feat = {}
-            for i, f in self.model.extract(content_img, layers=self.args.content_layers):
-                self.content_feat[i] = f.detach()
-
+            n = 0
+            for img in content_imgs:
+                for i, f in self.model.extract(img, layers=self.args.content_layers):
+                   self.content_feat[n, i] = f.detach()
+                n = n + 1
             # Now run the optimization using L-BFGS starting from the seed image.
-            output = self.optimize(seed_img, self.args.iterations) #, lr=0.2)
+            output = self.optimize(seed_img, self.iterations[self.scale]) #, lr=0.2)
 
             # For the next scale, we'll reuse a biliniear interpolated version of this output.
             self.seed_img = resize.UpscaleBuilder(factor, mode='bilinear').build(output).detach()
@@ -201,17 +216,17 @@ def main(args):
     add_arg = parser.add_argument
     add_arg = parser.add_argument
     add_arg('--scales', type=int, default=3, help='Total number of scales.')
-    add_arg('--iterations', type=int, default=250, help='Number of iterations each scale.')
+    add_arg('--iterations', type=int, nargs='*', default=[250], help='Number of iterations each scale.')
     add_arg('--device', type=str, default=device, help='Where to perform the computation.')
     add_arg('--content', type=str, default=None, help='Image to use as reference.')
-    add_arg('--content-layers', type=str, nargs='*', default=['4_1'])
-    add_arg('--content-weights', type=float, nargs='*', default=[1.0])
+    add_arg('--content-layers', type=str, nargs='*', default=['4_1','fc3'])
+    add_arg('--content-weights', type=float, nargs='*', default=[1.0, 1e+3])
     add_arg('--content-size', type=str, default=None)
     add_arg('--output', type=str, default=None, help='Filename for output image.')
     add_arg('--output-size', type=str, default=None)
     add_arg('--seed', type=str, default=None, help='Initial image to use.')
     add_arg('--seed-random', type=int, default=None, help='Seed for random numbers.')
-    add_arg('--style', type=str, default=None, help='Image for inspiration.')
+    add_arg('--style', type=str, default='content', help='Image for inspiration.')
     add_arg('--style-layers', type=str, default='1_2,2_2,3_3,4_3,5_3')
     add_arg('--style-weights', type=str, default='1.0,1.0,1.0,1.0,1.0')
     add_arg('--style-multiplier', type=str, default='1e+6')
@@ -223,12 +238,14 @@ def main(args):
     add_arg('--start', type=int, default=1)
     add_arg('--howmany', type=int, default=1)
     add_arg('--cascade', default=False, action='store_true')
-    add_arg('--model', type=str, default='imagenet', help='imagenet | places | stylized')
+    add_arg('--series', default=False, action='store_true')
+    add_arg('--model', type=str, default='places', help='imagenet | places | stylized')
     add_arg('--folder', default=False, action='store_true')
+    add_arg('--pooling', type=str, default='average')
 
     args = parser.parse_args()
 
-    if args.cascade:
+    if args.series:
         cfn = args.content
         ofn = args.output
         for n in range(args.start, args.start + args.howmany):
@@ -237,8 +254,9 @@ def main(args):
              print("*************** "+args.output+" *******************")
              optimizer = StyleTransfer(copy.deepcopy(args))
              optimizer.run()
-             args.seed = args.output
-             args.scales = 1
+             if args.cascade:
+                 args.seed = args.output
+                 args.scales = 1
     elif args.folder:
         cfn = args.content
         ofn = args.output
