@@ -1,10 +1,6 @@
 #!/usr/bin/env python3
 r"""                         _   _
-  _ __   ___ _   _ _ __ __ _| | (_)_ __ ___   __ _  __ _  ___ _ __
- | '_ \ / _ \ | | | '__/ _` | | | | '_ ` _ \ / _` |/ _` |/ _ \ '_ \
- | | | |  __/ |_| | | | (_| | | | | | | | | | (_| | (_| |  __/ | | |
- |_| |_|\___|\__,_|_|  \__,_|_| |_|_| |_| |_|\__,_|\__, |\___|_| |_|
-                                                   |___/
+
 """
 #
 # Copyright (c) 2018, Alex J. Champandard
@@ -55,8 +51,8 @@ def warn(message, *lines):
 
 
 print(
-    """{}    {}\nGeneration and synthesis of bitmap images powered by Deep Learning!{}
-  - Code licensed as AGPLv3, models under CC BY-NC-SA.{}\n""".format(
+    """{}    {}\nBased on neural-imagen code by Alex J. Champandard{}
+  - Code licensed as AGPLv3, original VGG19 model under CC BY-NC-SA.{}\n""".format(
         ansi.CYAN_B, __doc__, ansi.CYAN, ansi.ENDC
     )
 )

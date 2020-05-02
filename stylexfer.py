@@ -31,6 +31,8 @@ class StyleTransfer(optim.ImageOptimizer):
             self.model = classifiers.VGG19Encoder(pooling=args.pooling).to(self.device)
         elif args.model == "places":
             self.model = classifiers.VGG16Encoder(fn="data/vgg16places_enc.model", pooling=args.pooling).to(self.device)
+        elif args.model == "placesFC":
+            self.model = classifiers.VGG16FCEncoder(fn="data/vgg16places_fc_enc.model", pooling=args.pooling).to(self.device)
         elif args.model == "stylized":
             self.model = classifiers.VGG16Encoder(fn="data/vgg16stylized_enc.model", pooling=args.pooling).to(self.device)
         else:
@@ -62,8 +64,8 @@ class StyleTransfer(optim.ImageOptimizer):
                 w, h = reversed(list(map(int, args.style_size.split('x'))))
                 style_size = (w,h)
                 print("Style image resized to h={}, w={}".format(h,w))
-            if args.style.startswith("content"):
-                args.style = args.content #+ "," + args.style.replace("content+", "")
+            if args.style.startswith("@content"):
+                args.style = args.content + args.style.replace("@content", "")
             style_files = args.style.split(',')
             print("Style taken from: ",style_files)
             self.style_imgs = []
