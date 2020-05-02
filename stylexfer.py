@@ -28,11 +28,11 @@ class StyleTransfer(optim.ImageOptimizer):
         self.cuda = args.device == 'cuda'
         self.device = torch.device(args.device)
         if args.model == "imagenet":
-            self.model = classifiers.VGG19Encoder().to(self.device)
+            self.model = classifiers.VGG19Encoder(pooling=args.pooling).to(self.device)
         elif args.model == "places":
-            self.model = classifiers.VGG16Encoder(fn="data/vgg16places_enc.model").to(self.device)
+            self.model = classifiers.VGG16Encoder(fn="data/vgg16places_enc.model", pooling=args.pooling).to(self.device)
         elif args.model == "stylized":
-            self.model = classifiers.VGG16Encoder(fn="data/vgg16stylized_enc.model").to(self.device)
+            self.model = classifiers.VGG16Encoder(fn="data/vgg16stylized_enc.model", pooling=args.pooling).to(self.device)
         else:
             print("Unknown model: "+args.model)
             exit()
@@ -47,6 +47,7 @@ class StyleTransfer(optim.ImageOptimizer):
                 print("Content image resized to h={}, w={}".format(h,w))
             self.content_imgs = []
             content_files = args.content.split(',')
+            print("Content taken from: ", content_files)
             for f in content_files:
                 self.content_imgs.append(images.load_from_file(f, self.device, size=content_size))
         else:
@@ -61,10 +62,10 @@ class StyleTransfer(optim.ImageOptimizer):
                 w, h = reversed(list(map(int, args.style_size.split('x'))))
                 style_size = (w,h)
                 print("Style image resized to h={}, w={}".format(h,w))
-            if args.style.startswith("content+"):
-                args.style = args.content + "," + args.style.replace("content+", "")
+            if args.style.startswith("content"):
+                args.style = args.content #+ "," + args.style.replace("content+", "")
             style_files = args.style.split(',')
-            print(style_files)
+            print("Style taken from: ",style_files)
             self.style_imgs = []
             for f in style_files:
                 self.style_imgs.append(images.load_from_file(f, self.device, size = style_size))
@@ -166,8 +167,8 @@ class StyleTransfer(optim.ImageOptimizer):
                 if self.args.seed is not None:
                     seed_img = images.load_from_file(self.args.seed, self.device)
                     #seed_img = resize.DownscaleBuilder(factor).build(self.seed_img)
-                    print(seed_img.shape, content_img.shape)
-                    assert seed_img.shape == content_img.shape
+                    #print(seed_img.shape, content_img.shape)
+                    assert seed_img.shape == content_imgs[0].shape
 
                 # b) Use completely random buffer from a normal distribution.
                 else:
@@ -212,21 +213,21 @@ class StyleTransfer(optim.ImageOptimizer):
 def main(args):
     device = 'cuda' if torch.cuda.is_available() else 'cpu'
 
-    parser = argparse.ArgumentParser(prog='imagen')
+    parser = argparse.ArgumentParser(prog='stylexfer')
     add_arg = parser.add_argument
     add_arg = parser.add_argument
     add_arg('--scales', type=int, default=3, help='Total number of scales.')
     add_arg('--iterations', type=int, nargs='*', default=[250], help='Number of iterations each scale.')
     add_arg('--device', type=str, default=device, help='Where to perform the computation.')
     add_arg('--content', type=str, default=None, help='Image to use as reference.')
-    add_arg('--content-layers', type=str, nargs='*', default=['4_1','fc3'])
-    add_arg('--content-weights', type=float, nargs='*', default=[1.0, 1e+3])
+    add_arg('--content-layers', type=str, nargs='*', default=['4_1'])
+    add_arg('--content-weights', type=float, nargs='*', default=[1.0])
     add_arg('--content-size', type=str, default=None)
     add_arg('--output', type=str, default=None, help='Filename for output image.')
     add_arg('--output-size', type=str, default=None)
     add_arg('--seed', type=str, default=None, help='Initial image to use.')
     add_arg('--seed-random', type=int, default=None, help='Seed for random numbers.')
-    add_arg('--style', type=str, default='content', help='Image for inspiration.')
+    add_arg('--style', type=str, default='content+', help='Image for inspiration.')
     add_arg('--style-layers', type=str, default='1_2,2_2,3_3,4_3,5_3')
     add_arg('--style-weights', type=str, default='1.0,1.0,1.0,1.0,1.0')
     add_arg('--style-multiplier', type=str, default='1e+6')
@@ -239,7 +240,7 @@ def main(args):
     add_arg('--howmany', type=int, default=1)
     add_arg('--cascade', default=False, action='store_true')
     add_arg('--series', default=False, action='store_true')
-    add_arg('--model', type=str, default='places', help='imagenet | places | stylized')
+    add_arg('--model', type=str, default='imagenet', help='imagenet | places | stylized')
     add_arg('--folder', default=False, action='store_true')
     add_arg('--pooling', type=str, default='average')
 
